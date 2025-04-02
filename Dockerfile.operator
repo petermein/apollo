@@ -1,0 +1,76 @@
+# Build stage
+FROM golang:1.21-alpine AS builder
+
+# Install build dependencies
+RUN apk add --no-cache git
+
+# Set working directory
+WORKDIR /app
+
+# Copy go mod and sum files
+COPY go.mod go.sum ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application with all operator modules
+RUN CGO_ENABLED=0 GOOS=linux go build -tags=all_operators -o /app/build/apollo-operator ./cmd/operator
+
+# Module-specific tools stage
+FROM alpine:latest AS tools
+
+# Install MySQL client
+RUN apk add --no-cache mysql-client
+
+# Install kubectl
+RUN apk add --no-cache curl && \
+    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+    chmod +x kubectl && \
+    mv kubectl /usr/local/bin/
+
+# Final stage
+FROM alpine:latest
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates tzdata curl
+
+# Copy tools from tools stage
+COPY --from=tools /usr/bin/mysql /usr/bin/mysql
+COPY --from=tools /usr/bin/mysqladmin /usr/bin/mysqladmin
+COPY --from=tools /usr/local/bin/kubectl /usr/local/bin/kubectl
+
+# Create non-root user
+RUN adduser -D -g '' appuser
+
+# Set working directory
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /app/build/apollo-operator .
+
+# Copy base config file
+COPY configs/operator.yaml /app/config.yaml
+
+# Create directories for operator data and configs
+RUN mkdir -p /app/data /app/config && chown -R appuser:appuser /app/data /app/config
+
+# Use non-root user
+USER appuser
+
+# Expose operator API port
+EXPOSE 8081
+
+# Set environment variables
+ENV HOME=/app
+ENV OPERATOR_DATA_DIR=/app/data
+ENV OPERATOR_CONFIG_DIR=/app/config
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8081/health || exit 1
+
+# Command to run the application
+ENTRYPOINT ["./apollo-operator"] 
