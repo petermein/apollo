@@ -5,27 +5,29 @@ import (
 	"fmt"
 	"time"
 
+	"path/filepath"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
-	"path/filepath"
 
 	"github.com/petermein/apollo/internal/operators"
 )
 
 // Config represents the Kubernetes module configuration
 type Config struct {
-	Kubeconfig     string `json:"kubeconfig"`
-	Context        string `json:"context"`
-	Namespace      string `json:"namespace"`
-	MaxRoles       int    `json:"max_roles"`
-	RolePrefix     string `json:"role_prefix"`
+	Kubeconfig string `json:"kubeconfig"`
+	Context    string `json:"context"`
+	Namespace  string `json:"namespace"`
+	MaxRoles   int    `json:"max_roles"`
+	RolePrefix string `json:"role_prefix"`
 }
 
 // Module implements the Kubernetes privilege management module
 type Module struct {
-	config     *Config
-	client     *kubernetes.Clientset
+	config *Config
+	client *kubernetes.Clientset
 }
 
 // NewModule creates a new Kubernetes module
@@ -83,18 +85,25 @@ func (m *Module) Initialize(ctx context.Context, config interface{}) error {
 		}
 	}
 
-	config, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
+	restConfig, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		return fmt.Errorf("failed to build kubeconfig: %v", err)
 	}
 
 	// Set context if specified
 	if cfg.Context != "" {
-		config.CurrentContext = cfg.Context
+		loadingRules := &clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfig}
+		configOverrides := &clientcmd.ConfigOverrides{CurrentContext: cfg.Context}
+		kubeConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
+
+		restConfig, err = kubeConfig.ClientConfig()
+		if err != nil {
+			return fmt.Errorf("failed to load context: %v", err)
+		}
 	}
 
 	// Create Kubernetes client
-	client, err := kubernetes.NewForConfig(config)
+	client, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
 		return fmt.Errorf("failed to create Kubernetes client: %v", err)
 	}
@@ -197,4 +206,4 @@ func (m *Module) createRoleAndBinding(ctx context.Context, roleName, role, userI
 	// 2. Create a RoleBinding to bind the role to the user
 	// 3. Handle any errors and cleanup if needed
 	return fmt.Errorf("not implemented")
-} 
+}

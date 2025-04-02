@@ -3,23 +3,21 @@ package mysql
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/go-sql-driver/mysql"
 	"github.com/petermein/apollo/internal/operators"
 )
 
 // Config represents the MySQL module configuration
 type Config struct {
-	Host             string        `json:"host"`
-	Port             int           `json:"port"`
-	User             string        `json:"user"`
-	Password         string        `json:"password"`
-	MaxConnections   int           `json:"max_connections"`
+	Host              string        `json:"host"`
+	Port              int           `json:"port"`
+	User              string        `json:"user"`
+	Password          string        `json:"password"`
+	MaxConnections    int           `json:"max_connections"`
 	ConnectionTimeout time.Duration `json:"connection_timeout"`
-	IdleTimeout      time.Duration `json:"idle_timeout"`
+	IdleTimeout       time.Duration `json:"idle_timeout"`
 }
 
 // Module implements the MySQL privilege management module
@@ -112,7 +110,7 @@ func (m *Module) HandlePrivilegeRequest(ctx context.Context, request *operators.
 	for _, privilege := range privileges {
 		query := fmt.Sprintf("GRANT %s ON %s TO '%s'@'%%' IDENTIFIED BY '%s'",
 			privilege, request.ResourceID, username, password)
-		
+
 		if _, err := m.db.ExecContext(ctx, query); err != nil {
 			return fmt.Errorf("failed to grant privileges: %v", err)
 		}
@@ -133,11 +131,6 @@ func (m *Module) HandlePrivilegeRequest(ctx context.Context, request *operators.
 		ExpiresAt:  time.Now().Add(parseDuration(request.Duration)),
 	}
 
-	// Store in metadata for later revocation
-	metadata, err := json.Marshal(grant)
-	if err != nil {
-		return fmt.Errorf("failed to marshal grant metadata: %v", err)
-	}
 	request.Metadata = map[string]interface{}{
 		"grant": grant,
 	}
@@ -167,14 +160,84 @@ func (m *Module) HealthCheck(ctx context.Context) error {
 	return nil
 }
 
+// PingRequest represents a ping request
+type PingRequest struct {
+	Server string `json:"server"`
+}
+
+// HandlePingRequest handles a MySQL ping request
+func (m *Module) HandlePingRequest(ctx context.Context, request *PingRequest) (string, error) {
+	if m.db == nil {
+		return "", fmt.Errorf("database not initialized")
+	}
+
+	// Execute ping query
+	var hostname string
+	err := m.db.QueryRowContext(ctx, "SELECT @@hostname").Scan(&hostname)
+	if err != nil {
+		return "", fmt.Errorf("failed to get hostname: %v", err)
+	}
+
+	return hostname, nil
+}
+
+// ServerInfo represents information about a registered MySQL server
+type ServerInfo struct {
+	Name     string `json:"name"`
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	User     string `json:"user"`
+	Database string `json:"database"`
+}
+
+// ListServers returns information about all registered MySQL servers
+func (m *Module) ListServers(ctx context.Context) ([]ServerInfo, error) {
+	if m.db == nil {
+		return nil, fmt.Errorf("database not initialized")
+	}
+
+	// Query to get all registered servers
+	query := `
+		SELECT 
+			name,
+			host,
+			port,
+			user,
+			database
+		FROM registered_servers
+		ORDER BY name
+	`
+
+	rows, err := m.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query servers: %v", err)
+	}
+	defer rows.Close()
+
+	var servers []ServerInfo
+	for rows.Next() {
+		var server ServerInfo
+		if err := rows.Scan(&server.Name, &server.Host, &server.Port, &server.User, &server.Database); err != nil {
+			return nil, fmt.Errorf("failed to scan server row: %v", err)
+		}
+		servers = append(servers, server)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating servers: %v", err)
+	}
+
+	return servers, nil
+}
+
 // Helper functions
 
 func parsePrivileges(level string) ([]string, error) {
 	// Map privilege levels to actual MySQL privileges
 	privilegeMap := map[string][]string{
-		"read":    {"SELECT"},
-		"write":   {"SELECT", "INSERT", "UPDATE", "DELETE"},
-		"admin":   {"ALL PRIVILEGES"},
+		"read":  {"SELECT"},
+		"write": {"SELECT", "INSERT", "UPDATE", "DELETE"},
+		"admin": {"ALL PRIVILEGES"},
 	}
 
 	privileges, ok := privilegeMap[level]
@@ -197,4 +260,4 @@ func parseDuration(duration string) time.Duration {
 func generateSecurePassword() string {
 	// In a real implementation, generate a secure random password
 	return "temporary_password" // This should be replaced with proper password generation
-} 
+}

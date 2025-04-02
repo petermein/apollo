@@ -1,36 +1,30 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 
-	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/oauth2"
-	"golang.org/x/oauth2/google"
 )
 
 var (
-	clientID     string
-	clientSecret string
-	apiEndpoint  string
-	cfgFile      string
+	apiEndpoint string
+	cfgFile     string
 )
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "apollo-cli",
-	Short: "Apollo CLI for privilege escalation management",
-	Long: `Apollo CLI is a command-line interface for managing privilege escalations.
-It provides secure access to temporary elevated privileges through OpenID Connect authentication.`,
+	Short: "Apollo CLI - Privilege Management Tool",
+	Long: `Apollo CLI is a tool for managing privileged access across different systems.
+It provides a unified interface for requesting and revoking access to various resources.`,
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
+	if err := rootCmd.Execute(); err != nil {
+		fmt.Println(err)
 		os.Exit(1)
 	}
 }
@@ -40,16 +34,10 @@ func init() {
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.apollo-cli.yaml)")
-	rootCmd.PersistentFlags().StringVar(&clientID, "client-id", "", "Google OAuth client ID")
-	rootCmd.PersistentFlags().StringVar(&clientSecret, "client-secret", "", "Google OAuth client secret")
 	rootCmd.PersistentFlags().StringVar(&apiEndpoint, "api-endpoint", "http://localhost:8080", "API server endpoint")
-
-	// Mark required flags
-	rootCmd.MarkPersistentFlagRequired("client-id")
-	rootCmd.MarkPersistentFlagRequired("client-secret")
+	rootCmd.PersistentFlags().StringP("output", "o", "text", "Output format (text/json)")
 
 	// Add commands
-	rootCmd.AddCommand(loginCmd)
 	rootCmd.AddCommand(requestCmd)
 }
 
@@ -67,29 +55,19 @@ func initConfig() {
 		viper.SetConfigName(".apollo-cli")
 	}
 
-	viper.AutomaticEnv()
+	// Set default values
+	viper.SetDefault("api.endpoint", "http://localhost:8080")
+	viper.SetDefault("api.retry_attempts", 3)
+	viper.SetDefault("api.retry_delay", "5s")
 
+	// Read config
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
-}
 
-// getOIDCProvider returns an initialized OIDC provider
-func getOIDCProvider(ctx context.Context) (*oidc.Provider, error) {
-	return oidc.NewProvider(ctx, "https://accounts.google.com")
-}
+	// Bind flags to viper
+	viper.BindPFlag("api.endpoint", rootCmd.PersistentFlags().Lookup("api-endpoint"))
 
-// getOAuthConfig returns an initialized OAuth2 config
-func getOAuthConfig() *oauth2.Config {
-	return &oauth2.Config{
-		ClientID:     clientID,
-		ClientSecret: clientSecret,
-		Endpoint:     google.Endpoint,
-		RedirectURL:  "http://localhost:8080/callback",
-		Scopes: []string{
-			oidc.ScopeOpenID,
-			"profile",
-			"email",
-		},
-	}
-} 
+	// Update variables from viper
+	apiEndpoint = viper.GetString("api.endpoint")
+}

@@ -1,0 +1,17 @@
+cli:
+  config_dir: "/app/config"
+
+api:
+  endpoint: "http://localhost:8080"
+  retry_attempts: 3
+  retry_delay: "5s"
+
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+
+auth:
+  google:
+    client_id: "REPLACE_WITH_YOUR_GOOGLE_CLIENT_ID"
+    client_secret: "REPLACE_WITH_YOUR_GOOGLE_CLIENT_SECRET" 

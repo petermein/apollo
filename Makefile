@@ -15,7 +15,7 @@ OPERATOR_BINARY=apollo-operator
 # Build directories
 BUILD_DIR=build
 CLI_DIR=cmd/cli
-API_DIR=cmd/api
+API_DIR=cmd/api/server
 OPERATOR_DIR=cmd/operator
 
 # Docker parameters

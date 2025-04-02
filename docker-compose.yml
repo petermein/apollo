@@ -1,25 +1,41 @@
-version: '3.8'
-
 services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: apollo
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - apollo_network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
   api:
     build:
       context: .
       dockerfile: Dockerfile.api
     ports:
       - "8080:8080"
-    environment:
-      - SLACK_TOKEN=${SLACK_TOKEN}
-      - SLACK_CHANNEL=${SLACK_CHANNEL}
     volumes:
       - api_data:/app/data
+      - ./configs/api.yaml:/app/config.yaml:ro
     networks:
       - apollo_network
+    depends_on:
+      mysql:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/v1/health"]
+      interval: 2s
+      timeout: 10s
+      retries: 5
 
   operator-1:
     build:
@@ -29,15 +45,9 @@ services:
       - "8081:8081"
     environment:
       - OPERATOR_ID=operator-1
-      - ENABLED_MODULES=mysql,kubernetes
-      - MYSQL_HOST=${MYSQL_HOST}
-      - MYSQL_PORT=${MYSQL_PORT}
-      - MYSQL_USER=${MYSQL_USER}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
-      - KUBERNETES_CONFIG=/app/config/kubeconfig
     volumes:
       - operator_1_data:/app/data
-      - ${KUBECONFIG_PATH}:/app/config/kubeconfig:ro
+      - ./configs/operator.yaml:/app/config.yaml:ro
     networks:
       - apollo_network
     depends_on:
@@ -52,13 +62,9 @@ services:
       - "8082:8081"
     environment:
       - OPERATOR_ID=operator-2
-      - ENABLED_MODULES=mysql
-      - MYSQL_HOST=${MYSQL_HOST_2}
-      - MYSQL_PORT=${MYSQL_PORT_2}
-      - MYSQL_USER=${MYSQL_USER_2}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD_2}
     volumes:
       - operator_2_data:/app/data
+      - ./configs/operator.yaml:/app/config.yaml:ro
     networks:
       - apollo_network
     depends_on:
@@ -71,14 +77,13 @@ services:
       dockerfile: Dockerfile.cli
     volumes:
       - ${HOME}/.apollo-cli:/app/config
-    environment:
-      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
-      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - ./configs/cli.yaml:/app/config.yaml:ro
     networks:
       - apollo_network
     depends_on:
       api:
         condition: service_healthy
+    command: ["--config", "/app/config.yaml"]
 
 networks:
   apollo_network:
@@ -87,4 +92,5 @@ networks:
 volumes:
   api_data:
   operator_1_data:
-  operator_2_data: 
+  operator_2_data:
+  mysql_data: 

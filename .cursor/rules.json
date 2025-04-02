@@ -1,0 +1,132 @@
+{
+  "rules": [
+    {
+      "name": "Go Module Version",
+      "pattern": "go.mod",
+      "message": "Go version should be 1.24 or higher",
+      "severity": "error",
+      "regex": "go 1\\.(?:[0-1][0-9]|2[0-3])",
+      "replacement": "go 1.24"
+    },
+    {
+      "name": "Docker Go Version",
+      "pattern": "Dockerfile.*",
+      "message": "Dockerfiles should use golang:1.24-alpine",
+      "severity": "error",
+      "regex": "FROM golang:1\\.(?:[0-1][0-9]|2[0-3])-alpine",
+      "replacement": "FROM golang:1.24-alpine"
+    },
+    {
+      "name": "Go Build Tags",
+      "pattern": "*.go",
+      "message": "Build tags should be properly formatted",
+      "severity": "warning",
+      "regex": "//go:build",
+      "replacement": "//go:build"
+    },
+    {
+      "name": "Non-Root User",
+      "pattern": "Dockerfile.*",
+      "message": "Dockerfiles should use non-root user",
+      "severity": "error",
+      "regex": "USER root",
+      "replacement": "USER appuser"
+    },
+    {
+      "name": "Go Error Handling",
+      "pattern": "*.go",
+      "message": "Error handling should use fmt.Errorf with %v or %w",
+      "severity": "warning",
+      "regex": "errors\\.New\\(|fmt\\.Errorf\\([^%]",
+      "replacement": "fmt.Errorf"
+    },
+    {
+      "name": "Go Context Usage",
+      "pattern": "*.go",
+      "message": "Context should be the first parameter in functions",
+      "severity": "warning",
+      "regex": "func [^(]+\\([^c]",
+      "replacement": "func (ctx context.Context, "
+    },
+    {
+      "name": "Go Interface Naming",
+      "pattern": "*.go",
+      "message": "Interface names should end with 'er'",
+      "severity": "warning",
+      "regex": "type [A-Z][a-zA-Z]+ interface",
+      "replacement": "type ${1}er interface"
+    },
+    {
+      "name": "Go Struct Tags",
+      "pattern": "*.go",
+      "message": "Struct tags should use json and yaml tags",
+      "severity": "warning",
+      "regex": "type [A-Z][a-zA-Z]+ struct \\{",
+      "replacement": "type ${1} struct {"
+    },
+    {
+      "name": "Go Package Comments",
+      "pattern": "*.go",
+      "message": "Package should have a comment",
+      "severity": "warning",
+      "regex": "^package [a-z]+$",
+      "replacement": "// Package ${1} provides functionality for ${1}"
+    },
+    {
+      "name": "Go Function Comments",
+      "pattern": "*.go",
+      "message": "Exported functions should have comments",
+      "severity": "warning",
+      "regex": "^func [A-Z][a-zA-Z]+\\(",
+      "replacement": "// ${1} "
+    },
+    {
+      "name": "Go Error Returns",
+      "pattern": "*.go",
+      "message": "Error should be the last return value",
+      "severity": "warning",
+      "regex": "\\([^)]+\\) \\([^)]+, error\\)",
+      "replacement": "($1) (error, $2)"
+    },
+    {
+      "name": "Go Timeout Context",
+      "pattern": "*.go",
+      "message": "Use context.WithTimeout for timeouts",
+      "severity": "warning",
+      "regex": "time\\.Sleep\\(",
+      "replacement": "context.WithTimeout"
+    },
+    {
+      "name": "Go Logging",
+      "pattern": "*.go",
+      "message": "Use structured logging",
+      "severity": "warning",
+      "regex": "fmt\\.Printf\\(",
+      "replacement": "log.WithFields"
+    },
+    {
+      "name": "Go Configuration",
+      "pattern": "*.go",
+      "message": "Use viper for configuration",
+      "severity": "warning",
+      "regex": "os\\.Getenv\\(",
+      "replacement": "viper.GetString"
+    },
+    {
+      "name": "Go HTTP Handlers",
+      "pattern": "*.go",
+      "message": "Use gin.Context for HTTP handlers",
+      "severity": "warning",
+      "regex": "http\\.HandlerFunc",
+      "replacement": "gin.HandlerFunc"
+    },
+    {
+      "name": "Go Database",
+      "pattern": "*.go",
+      "message": "Use sql.DB for database connections",
+      "severity": "warning",
+      "regex": "database/sql\\.DB",
+      "replacement": "sql.DB"
+    }
+  ]
+} 

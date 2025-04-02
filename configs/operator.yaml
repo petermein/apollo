@@ -1,41 +1,41 @@
 # Base operator configuration
 operator:
-  id: ${OPERATOR_ID}
-  enabled_modules: ${ENABLED_MODULES}
+  id: "operator-1"
+  enabled_modules: "mysql,kubernetes"
 
 # Module configurations
 modules:
   mysql:
-    enabled: false
+    enabled: true
     config:
-      host: ${MYSQL_HOST}
-      port: ${MYSQL_PORT}
-      user: ${MYSQL_USER}
-      password: ${MYSQL_PASSWORD}
+      host: "localhost"
+      port: 3306
+      user: "root"
+      password: "your_password_here"
+      database: "apollo"
       max_connections: 10
       connection_timeout: 5s
       idle_timeout: 30s
 
   kubernetes:
-    enabled: false
-    config:
-      kubeconfig: ${KUBERNETES_CONFIG}
-      context: ${KUBERNETES_CONTEXT}
-      namespace: ${KUBERNETES_NAMESPACE}
-      max_roles: 5
-      role_prefix: "apollo-"
+    enabled: true
+    config: "/app/config/kubeconfig"
+    context: ${KUBERNETES_CONTEXT}
+    namespace: ${KUBERNETES_NAMESPACE}
+    max_roles: 5
+    role_prefix: "apollo-"
 
 # API configuration
 api:
-  endpoint: ${API_ENDPOINT}
+  endpoint: "http://api:8080"
   retry_attempts: 3
-  retry_delay: 5s
+  retry_delay: "5s"
 
 # Logging configuration
 logging:
-  level: ${LOG_LEVEL:-info}
-  format: ${LOG_FORMAT:-json}
-  output: ${LOG_OUTPUT:-stdout}
+  level: "info"
+  format: "json"
+  output: "stdout"
 
 # Health check configuration
 health:

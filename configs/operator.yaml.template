@@ -1,0 +1,44 @@
+# Base operator configuration
+operator:
+  id: "REPLACE_WITH_OPERATOR_ID"
+  enabled_modules: "mysql,kubernetes"
+
+# Module configurations
+modules:
+  mysql:
+    enabled: true
+    config:
+      host: "localhost"
+      port: 3306
+      user: "root"
+      password: "REPLACE_WITH_YOUR_PASSWORD"
+      database: "apollo"
+      max_connections: 10
+      connection_timeout: 5s
+      idle_timeout: 30s
+
+  kubernetes:
+    enabled: true
+    config: "/app/config/kubeconfig"
+    context: "REPLACE_WITH_K8S_CONTEXT"
+    namespace: "REPLACE_WITH_K8S_NAMESPACE"
+    max_roles: 5
+    role_prefix: "apollo-"
+
+# API configuration
+api:
+  endpoint: "http://api:8080"
+  retry_attempts: 3
+  retry_delay: "5s"
+
+# Logging configuration
+logging:
+  level: "info"
+  format: "json"
+  output: "stdout"
+
+# Health check configuration
+health:
+  interval: "30s"
+  timeout: "3s"
+  retries: 3 

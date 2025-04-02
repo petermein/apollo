@@ -14,50 +14,41 @@ import (
 
 	"github.com/petermein/apollo/internal/config"
 	"github.com/petermein/apollo/internal/operators"
-	"github.com/petermein/apollo/internal/operators/kubernetes"
 	"github.com/petermein/apollo/internal/operators/mysql"
 )
 
 var (
-	configPath = flag.String("config", "configs/operator.yaml", "Path to operator configuration file")
-	port       = flag.Int("port", 8081, "Port to listen on")
+	cfgFile = flag.String("config", "", "Path to config file")
+	port    = flag.Int("port", 8081, "Port to listen on")
 )
 
 func main() {
 	flag.Parse()
 
-	// Get absolute path to config file
-	absConfigPath, err := config.GetConfigPath(*configPath)
-	if err != nil {
-		log.Fatalf("Failed to get config path: %v", err)
-	}
-
 	// Load configuration
-	cfg, err := config.LoadConfig(absConfigPath)
+	cfg, err := config.LoadConfig(*cfgFile)
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	// Create module registry
+	// Initialize module registry
 	registry := operators.NewModuleRegistry()
 
-	// Register available modules
-	if err := registry.Register(mysql.NewModule()); err != nil {
+	// Register MySQL module
+	mysqlModule := mysql.NewModule()
+	if err := registry.Register(mysqlModule); err != nil {
 		log.Fatalf("Failed to register MySQL module: %v", err)
-	}
-	if err := registry.Register(kubernetes.NewModule()); err != nil {
-		log.Fatalf("Failed to register Kubernetes module: %v", err)
 	}
 
 	// Get enabled modules
-	enabledModules, err := registry.GetEnabledModules(cfg.Operator.EnabledModules)
+	modules, err := registry.GetEnabledModules(cfg.Operator.EnabledModules)
 	if err != nil {
 		log.Fatalf("Failed to get enabled modules: %v", err)
 	}
 
 	// Initialize modules
 	ctx := context.Background()
-	for _, module := range enabledModules {
+	for _, module := range modules {
 		moduleConfig, err := cfg.GetModuleConfig(module.Name())
 		if err != nil {
 			log.Fatalf("Failed to get config for module %s: %v", module.Name(), err)
@@ -68,11 +59,33 @@ func main() {
 		}
 	}
 
+	// Create API client
+	client := NewAPIClient(cfg.API.Endpoint)
+
+	// Handle graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// Start job processing loop
+	go func() {
+		for {
+			select {
+			case <-sigChan:
+				log.Println("Shutting down operator...")
+				return
+			default:
+				if err := processJobs(ctx, client, modules); err != nil {
+					log.Printf("Error processing jobs: %v", err)
+				}
+			}
+		}
+	}()
+
 	// Create HTTP server
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", handleHealth(enabledModules))
-	mux.HandleFunc("/privilege/request", handlePrivilegeRequest(enabledModules))
-	mux.HandleFunc("/privilege/revoke", handlePrivilegeRevoke(enabledModules))
+	mux.HandleFunc("/health", handleHealth(modules))
+	mux.HandleFunc("/privilege/request", handlePrivilegeRequest(modules))
+	mux.HandleFunc("/privilege/revoke", handlePrivilegeRevoke(modules))
 
 	server := &http.Server{
 		Addr:    fmt.Sprintf(":%d", *port),
@@ -87,10 +100,7 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
+	<-sigChan
 
 	// Graceful shutdown
 	log.Println("Shutting down server...")
@@ -193,4 +203,56 @@ func handlePrivilegeRevoke(modules []operators.Module) http.HandlerFunc {
 
 		w.WriteHeader(http.StatusOK)
 	}
-} 
+}
+
+func processJobs(ctx context.Context, client *APIClient, modules []operators.Module) error {
+	// Get pending jobs
+	jobs, err := client.GetPendingJobs(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to get pending jobs: %v", err)
+	}
+
+	for _, job := range jobs {
+		// Find matching module
+		var module operators.Module
+		for _, m := range modules {
+			if m.Name() == job.Module {
+				module = m
+				break
+			}
+		}
+
+		if module == nil {
+			log.Printf("No matching module found for job %s", job.ID)
+			continue
+		}
+
+		// Process job based on type
+		switch job.Type {
+		case "ping":
+			if err := processPingJob(ctx, client, job, module); err != nil {
+				log.Printf("Failed to process ping job %s: %v", job.ID, err)
+			}
+		default:
+			log.Printf("Unknown job type: %s", job.Type)
+		}
+	}
+
+	return nil
+}
+
+func processPingJob(ctx context.Context, client *APIClient, job *Job, module operators.Module) error {
+	// Parse request
+	var req mysql.PingRequest
+	if err := json.Unmarshal(job.Request, &req); err != nil {
+		return fmt.Errorf("failed to parse ping request: %v", err)
+	}
+
+	// Handle ping request
+	result, err := module.(*mysql.Module).HandlePingRequest(ctx, &req)
+	if err != nil {
+		return client.UpdateJob(ctx, job.ID, "failed", "", err.Error())
+	}
+
+	return client.UpdateJob(ctx, job.ID, "completed", result, "")
+}

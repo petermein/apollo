@@ -6,16 +6,16 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 
+	"github.com/petermein/apollo/internal/operators/mysql"
 	"gopkg.in/yaml.v3"
 )
 
 // Config represents the root configuration structure
 type Config struct {
 	Operator struct {
-		ID             string            `yaml:"id" env:"OPERATOR_ID"`
-		EnabledModules string            `yaml:"enabled_modules" env:"ENABLED_MODULES"`
+		ID             string `yaml:"id" env:"OPERATOR_ID"`
+		EnabledModules string `yaml:"enabled_modules" env:"ENABLED_MODULES"`
 	} `yaml:"operator"`
 
 	Modules map[string]interface{} `yaml:"modules"`
@@ -158,12 +158,21 @@ func (c *Config) GetModuleConfig(moduleName string) (interface{}, error) {
 		return nil, fmt.Errorf("failed to marshal module config: %v", err)
 	}
 
-	var result interface{}
-	if err := json.Unmarshal(data, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal module config: %v", err)
+	// Handle module-specific config types
+	switch moduleName {
+	case "mysql":
+		var mysqlConfig mysql.Config
+		if err := json.Unmarshal(data, &mysqlConfig); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal MySQL config: %v", err)
+		}
+		return &mysqlConfig, nil
+	default:
+		var result interface{}
+		if err := json.Unmarshal(data, &result); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal module config: %v", err)
+		}
+		return result, nil
 	}
-
-	return result, nil
 }
 
 // GetConfigPath returns the absolute path to the configuration file
@@ -180,4 +189,4 @@ func GetConfigPath(path string) (string, error) {
 	}
 
 	return absPath, nil
-} 
+}

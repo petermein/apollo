@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# How to debug docker
+
+- We want to verify if our containers build with `make build` 
+- After this completes we will debug with `docker compose up --build -d` 
+    - Check `docker compose ps` if everythign started 
+    - And if something did not `docker compose logs` to continue debugging    

@@ -1,0 +1,11 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# The 3 parts
+
+- We have 3 systems `api` `cli` and `operator`
+- The code that will be written for the systems shall not be shared. 
+- If there is module code that is needed in either, make seperate module in each systems.
+- The project structue should reflect that this code cannot be shared 
