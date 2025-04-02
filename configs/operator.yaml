@@ -1,29 +1,17 @@
 # Base operator configuration
-operator:
-  id: "operator-1"
-  enabled_modules: "mysql,kubernetes"
+operator_id: ${OPERATOR_ID:-operator-1}
+enabled_modules: "mysql"
 
 # Module configurations
 modules:
   mysql:
-    enabled: true
-    config:
-      host: "localhost"
-      port: 3306
-      user: "root"
-      password: "your_password_here"
-      database: "apollo"
-      max_connections: 10
-      connection_timeout: 5s
-      idle_timeout: 30s
-
-  kubernetes:
-    enabled: true
-    config: "/app/config/kubeconfig"
-    context: ${KUBERNETES_CONTEXT}
-    namespace: ${KUBERNETES_NAMESPACE}
-    max_roles: 5
-    role_prefix: "apollo-"
+    host: "mysql"
+    port: 3306
+    user: "root"
+    password: "root"
+    max_connections: 10
+    connection_timeout: "5s"
+    idle_timeout: "5m"
 
 # API configuration
 api:

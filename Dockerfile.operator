@@ -60,17 +60,10 @@ RUN mkdir -p /app/data /app/config && chown -R appuser:appuser /app/data /app/co
 # Use non-root user
 USER appuser
 
-# Expose operator API port
-EXPOSE 8081
-
 # Set environment variables
 ENV HOME=/app
 ENV OPERATOR_DATA_DIR=/app/data
 ENV OPERATOR_CONFIG_DIR=/app/config
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8081/health || exit 1
-
 # Command to run the application
-ENTRYPOINT ["./apollo-operator"] 
+ENTRYPOINT ["./apollo-operator", "--config", "/app/config.yaml"] 

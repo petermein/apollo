@@ -34,11 +34,13 @@ func init() {
 
 	// Global flags
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.apollo-cli.yaml)")
-	rootCmd.PersistentFlags().StringVar(&apiEndpoint, "api-endpoint", "http://localhost:8080", "API server endpoint")
+	rootCmd.PersistentFlags().StringVar(&apiEndpoint, "api", "http://localhost:8080", "API server endpoint")
 	rootCmd.PersistentFlags().StringP("output", "o", "text", "Output format (text/json)")
 
 	// Add commands
 	rootCmd.AddCommand(requestCmd)
+	rootCmd.AddCommand(mysqlCmd)
+	rootCmd.AddCommand(operatorCmd)
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -66,7 +68,7 @@ func initConfig() {
 	}
 
 	// Bind flags to viper
-	viper.BindPFlag("api.endpoint", rootCmd.PersistentFlags().Lookup("api-endpoint"))
+	viper.BindPFlag("api.endpoint", rootCmd.PersistentFlags().Lookup("api"))
 
 	// Update variables from viper
 	apiEndpoint = viper.GetString("api.endpoint")

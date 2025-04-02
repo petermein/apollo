@@ -146,16 +146,58 @@ var (
 	k8sReason    string
 )
 
+// Operator Commands
+var operatorCmd = &cobra.Command{
+	Use:   "operator",
+	Short: "Operator management",
+	Long:  `Manage operators including listing and monitoring their status.`,
+}
+
+var operatorListCmd = &cobra.Command{
+	Use:   "list",
+	Short: "List registered operators",
+	Long: `List all registered operators with their status and last seen time.
+Example:
+  apollo-cli operator list`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		// Create API client
+		client := NewAPIClient(apiEndpoint)
+
+		// Get list of operators
+		operators, err := client.ListOperators(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("failed to list operators: %v", err)
+		}
+
+		// Print operators in a table format
+		fmt.Printf("\nRegistered Operators:\n")
+		fmt.Printf("--------------------\n")
+		for _, operator := range operators {
+			fmt.Printf("ID:        %s\n", operator.ID)
+			fmt.Printf("Status:    %s\n", operator.Status)
+			fmt.Printf("Last Seen: %s\n", operator.LastSeen.Format(time.RFC3339))
+			fmt.Printf("Created:   %s\n", operator.CreatedAt.Format(time.RFC3339))
+			fmt.Printf("--------------------\n")
+		}
+
+		return nil
+	},
+}
+
 func init() {
 	// Add module commands to root
 	rootCmd.AddCommand(mysqlCmd)
 	rootCmd.AddCommand(kubernetesCmd)
+	rootCmd.AddCommand(operatorCmd)
 
 	// MySQL command setup
 	mysqlCmd.AddCommand(mysqlGrantCmd)
 	mysqlCmd.AddCommand(mysqlRevokeCmd)
 	mysqlCmd.AddCommand(mysqlPingCmd)
 	mysqlCmd.AddCommand(mysqlListCmd)
+
+	// Operator command setup
+	operatorCmd.AddCommand(operatorListCmd)
 
 	// MySQL ping command flags
 	mysqlPingCmd.Flags().StringVar(&mysqlServer, "server", "", "Name of the registered MySQL server")

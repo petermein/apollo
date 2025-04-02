@@ -29,6 +29,15 @@ type ServerInfo struct {
 	Database string `json:"database"`
 }
 
+// OperatorInfo represents information about an operator
+type OperatorInfo struct {
+	ID        string    `json:"id"`
+	Status    string    `json:"status"`
+	LastSeen  time.Time `json:"last_seen"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
 // APIClient handles communication with the API server
 type APIClient struct {
 	baseURL    string
@@ -155,4 +164,37 @@ func (c *APIClient) ListMySQLServers(ctx context.Context) ([]ServerInfo, error) 
 	}
 
 	return servers, nil
+}
+
+// ListOperators retrieves a list of registered operators
+func (c *APIClient) ListOperators(ctx context.Context) ([]OperatorInfo, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", fmt.Sprintf("%s/api/v1/operators", c.baseURL), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %v", err)
+	}
+
+	fmt.Printf("Sending request to %s\n", req.URL.String())
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errBody struct {
+			Error string `json:"error"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&errBody); err == nil && errBody.Error != "" {
+			return nil, fmt.Errorf("unexpected status code: %d, error: %s", resp.StatusCode, errBody.Error)
+		}
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+
+	var operators []OperatorInfo
+	if err := json.NewDecoder(resp.Body).Decode(&operators); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	fmt.Printf("Successfully retrieved %d operators\n", len(operators))
+	return operators, nil
 }

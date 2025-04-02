@@ -41,8 +41,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.operator
-    ports:
-      - "8081:8081"
     environment:
       - OPERATOR_ID=operator-1
     volumes:
@@ -58,8 +56,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.operator
-    ports:
-      - "8082:8081"
     environment:
       - OPERATOR_ID=operator-2
     volumes:

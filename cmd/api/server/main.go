@@ -33,9 +33,7 @@ func main() {
 
 	// Register MySQL module
 	mysqlModule := mysql.NewModule()
-	if err := registry.Register(mysqlModule); err != nil {
-		log.Fatalf("Failed to register MySQL module: %v", err)
-	}
+	registry.Register(mysqlModule)
 
 	// Get enabled modules
 	enabledModules := registry.GetEnabledModules(cfg.Server.EnabledModules)
